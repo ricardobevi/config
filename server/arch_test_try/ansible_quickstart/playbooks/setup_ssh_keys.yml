@@ -1,53 +1,37 @@
 ---
-- name: Ensure Python is installed on remote hosts
-  hosts: all
-  gather_facts: no
-  tasks:
-    - name: Install Python for Arch Linux systems
-      pacman:
-        name: python
-        state: present
-      become: yes
-
 - name: Setup SSH keys, configure sudo and randomize password for ansible user on remote servers
   hosts: all
   become: yes
-
-  vars:
-    local_user: "{{ lookup('env', 'USER') }}"
 
   tasks:
     - name: Ensure .ssh directory exists
       file:
         path: /home/ansible/.ssh
         state: directory
+        owner: ansible
+        group: ansible
         mode: '0700'
-        owner: "ansible"
-        group: "ansible"
 
     - name: Add SSH key to authorized_keys for ansible user
       authorized_key:
-        user: "ansible"
+        user: ansible
+        key: "{{ lookup('file', '/home/ric/.ssh/id_rsa.pub') }}"
         state: present
-        key: "{{ lookup('file', '/home/{{ local_user }}/.ssh/id_rsa.pub') }}"
 
     - name: Configure passwordless sudo for ansible user
       lineinfile:
         path: /etc/sudoers.d/ansible
-        line: "ansible ALL=(ALL) NOPASSWD: ALL"
         create: yes
-        mode: '0440'
+        state: present
+        line: "ansible ALL=(ALL) NOPASSWD:ALL"
         validate: 'visudo -cf %s'
 
     - name: Generate a random password for the ansible user
-      command: < /dev/urandom tr -dc 'A-Za-z0-9!@#$%^&*()_+=-' | head -c 16 | xargs echo
-      register: new_password
+      shell: |
+        echo $(</dev/urandom tr -dc 'A-Za-z0-9!@#$%^&*()_+=-' | head -c 16; echo)
+      register: random_password
 
-    - name: Change the ansible user's password
+    - name: Set the generated random password for the ansible user
       user:
-        name: "ansible"
-        password: "{{ new_password.stdout | password_hash('sha512', 'mysalt') }}"
-
-    - name: Display the new password for reference (can be removed in production)
-      debug:
-        msg: "The new password for user 'ansible' is {{ new_password.stdout }}"
+        name: ansible
+        password: "{{ random_password.stdout | password_hash('sha512') }}"
