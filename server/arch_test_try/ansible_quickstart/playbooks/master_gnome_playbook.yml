@@ -1,0 +1,3 @@
+---
+- import_playbook: setup_ssh_keys.yml
+- import_playbook: install_gnome.yml  

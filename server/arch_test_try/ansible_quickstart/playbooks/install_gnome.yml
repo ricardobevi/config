@@ -1,0 +1,70 @@
+---
+- name: Install GNOME desktop environment on Arch Linux with X11
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Synchronize package databases (Arch Linux)
+      command: pacman -Sy
+
+    - name: Upgrade all packages to the latest version (Arch Linux)
+      command: pacman -Syu --noconfirm
+
+    - name: Install GNOME desktop environment (Arch Linux)
+      pacman:
+        name: gnome
+        state: present
+
+    - name: Install X11 utilities (Arch Linux)
+      pacman:
+        name: xorg-server
+        state: present
+
+    - name: Enable and start GDM display manager service (Arch Linux)
+      systemd:
+        name: gdm
+        enabled: yes
+        state: started
+
+    # Create a new user named 'games'
+    - name: Add user 'games' with password 'password123'
+      user:
+        name: games
+        password: $6$rounds=656000$XDnZc34QbKWQl8fP$OoVzHwT9rM5U7dSgCjRJm3xGQvZ2pAq1x6k7P.8xBtN45KsKz2kZ/9yYw==  # This is a hashed password for 'password123'
+        shell: /bin/bash
+        groups: wheel
+
+    - name: Ensure the home directory exists for user 'games'
+      file:
+        path: /home/games
+        state: directory
+        owner: games
+        group: games
+
+    # Configure GDM to enable automatic login for user 'games'
+
+    - name: Enable AutomaticLogin in GDM custom.conf (Arch Linux)
+      lineinfile:
+        path: /etc/gdm/custom.conf
+        regexp: "^\\[daemon\\]$"
+        insertafter: EOF
+        line: |
+          [daemon]
+          AutomaticLoginEnable=True
+
+    - name: Set the automatic login user to 'games' in GDM custom.conf (Arch Linux)
+      lineinfile:
+        path: /etc/gdm/custom.conf
+        regexp: "^\\[daemon\\]$"
+        insertafter: EOF
+        line: |
+          [daemon]
+          AutomaticLogin=games
+
+    - name: Restart GDM to apply configuration changes
+      systemd:
+        name: gdm
+        state: restarted
+
+    - name: Reboot the system to apply changes
+      reboot:
