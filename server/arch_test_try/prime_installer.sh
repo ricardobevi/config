@@ -24,10 +24,6 @@ download_file "$USER_CONFIG_URL" "$CONFIG_DEST"
 # Download the user credentials file
 download_file "$USER_CREDENTIALS_URL" "$CREDENTIALS_DEST"
 
-# Update system packages (optional, can be skipped if not needed)
-echo "Updating system..."
-sudo pacman -Syu archinstall --noconfirm
-
 # Run archinstall with the downloaded configuration files
 echo "Starting archinstall with provided configurations..."
 archinstall --config "$CONFIG_DEST" --credentials "$CREDENTIALS_DEST"
