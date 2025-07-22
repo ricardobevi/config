@@ -1,0 +1,32 @@
+---
+- name: Install GNOME desktop environment on Arch Linux with X11, configure auto-login and install Steam for user 'games'
+  hosts: all
+  become: yes
+  tasks:
+    - name: Synchronize package databases (Arch Linux)
+      command: pacman -Sy
+
+    - name: Upgrade all packages to the latest version (Arch Linux)
+      command: pacman -Syu --noconfirm
+      when: ansible_pkg_mgr == 'pacman'
+
+    - name: Install GNOME desktop environment (Arch Linux)
+      pacman:
+        name: gnome
+        state: present
+
+    - name: Install X11 utilities (Arch Linux)
+      pacman:
+        name: xorg-server
+        state: present
+
+    - name: Enable and start GDM display manager service (Arch Linux)
+      systemd:
+        name: gdm
+        enabled: yes
+        state: started
+
+    # Reboot to ensure all changes take effect
+    - name: Reboot the system to apply changes
+      reboot:
+        msg: "System will be rebooted to apply the configuration"

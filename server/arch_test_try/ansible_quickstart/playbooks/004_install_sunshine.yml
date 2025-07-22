@@ -1,0 +1,88 @@
+---
+- name: Install Sunshine for desktop streaming on Arch Linux
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Update package database (Arch Linux)
+      command: pacman -Sy
+
+    - name: Upgrade all packages to the latest version (Arch Linux)
+      command: pacman -Syu --noconfirm
+      when: ansible_pkg_mgr == 'pacman'
+
+    - name: Install required dependencies for building Sunshine from source
+      pacman:
+        name:
+          - git
+          - base-devel
+          - cmake
+          - ninja
+          - pkgconf
+          - vulkan-icd-loader
+          - libva-mesa-driver
+          - ffmpeg
+          - qt5-base
+          - glslang
+          # Add Boost dependency here
+          - boost
+        state: present
+
+    - name: Create directory for Sunshine installation
+      file:
+        path: /opt/sunshine
+        state: directory
+        mode: '0755'
+
+    - name: Clone the Sunshine repository from GitHub
+      git:
+        repo: https://github.com/LizardByte/Sunshine.git
+        dest: /tmp/sunshine
+        version: master
+
+    - name: Create build directory for Sunshine
+      file:
+        path: /tmp/sunshine/build
+        state: directory
+        mode: '0755'
+
+    - name: Build Sunshine from source
+      shell: |
+        cd /tmp/sunshine/build
+        cmake .. -G Ninja
+        ninja
+        sudo cmake --install .
+      args:
+        executable: /bin/bash
+
+    - name: Create systemd service file for Sunshine
+      copy:
+        dest: /etc/systemd/system/sunshine.service
+        content: |
+          [Unit]
+          Description=Sunshine Streaming Service
+          After=network.target
+
+          [Service]
+          ExecStart=/opt/sunshine/bin/sunshine
+          WorkingDirectory=/opt/sunshine/
+          User=root
+          Group=root
+          Restart=always
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd configuration
+      command: systemctl daemon-reload
+
+    - name: Enable Sunshine service to start on boot
+      systemd:
+        name: sunshine
+        enabled: yes
+        state: started
+
+    # Optional: Configure firewall rules if needed (assuming ufw is used)
+    - name: Allow traffic on the Sunshine port (default 2113)
+      command: ufw allow 2113/tcp
+      ignore_errors: yes

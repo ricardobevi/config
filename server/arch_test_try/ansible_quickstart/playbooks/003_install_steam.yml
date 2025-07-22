@@ -1,0 +1,78 @@
+---
+- name: install steam
+  hosts: all
+  become: yes
+  tasks:    
+    # Install Steam for the 'games' user only if it's not already installed
+    - name: Check if Steam is installed
+      shell: pacman -Qi steam || echo "not_installed"
+      register: check_steam
+      changed_when: "'not_installed' in check_steam.stdout"
+
+    - name: Ensure multilib repository is enabled (Arch Linux)
+      when: check_steam.changed
+      block:
+        - command: pacman -Scc --noconfirm  # Clean cache first
+        - blockinfile:
+            path: /etc/pacman.conf
+            block: |
+              [multilib]
+              Include = /etc/pacman.d/mirrorlist
+
+    - name: Install Steam (requires root privileges)
+      when: check_steam.changed
+      command: "pacman -S steam --noconfirm"
+
+    # Optional: Create a systemd user service for automatic Steam updates
+    - name: "Check if steam-update.timer exists in systemd user directory"
+      stat:
+        path: /home/games/.config/systemd/user/steam-update.timer
+      register: steam_timer
+
+    - name: Create systemd user service directory for 'games' user
+      when: not steam_timer.stat.exists
+      file:
+        path: /home/games/.config/systemd/user/
+        state: directory
+        owner: games
+        group: games
+
+    - name: Add Steam update timer unit
+      when: not steam_timer.stat.exists
+      copy:
+        dest: /home/games/.config/systemd/user/steam-update.timer
+        content: |
+          [Unit]
+          Description=Update Steam every day at midnight
+          [Timer]
+          OnCalendar=daily
+          Persistent=true
+          [Install]
+          WantedBy=timers.target
+        owner: games
+        group: games
+
+    - name: Add Steam update service unit
+      when: not steam_timer.stat.exists
+      copy:
+        dest: /home/games/.config/systemd/user/steam-update.service
+        content: |
+          [Unit]
+          Description=Update Steam
+          [Service]
+          Type=simple
+          ExecStart=/usr/bin/steam --install --auto-login
+          User=games
+        owner: games
+        group: games
+
+    - name: Reload systemd user configuration for 'games' user using machinectl
+      when: not steam_timer.stat.exists
+      command: "systemctl --machine=root@{{ ansible_host }} --user daemon-reload"
+
+    - name: Enable and start the Steam update timer for 'games' user using machinectl
+      when: not steam_timer.stat.exists
+      command:
+        cmd: |
+          systemctl --machine=root@{{ ansible_host }} --user enable steam-update.timer &&
+          systemctl --machine=root@{{ ansible_host }} --user start steam-update.timer

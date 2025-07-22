@@ -1,3 +1,7 @@
 ---
-- import_playbook: setup_ssh_keys.yml
-- import_playbook: install_gnome.yml  
+- import_playbook: 000_setup_ssh_keys.yml
+- import_playbook: 001_install_gnome.yml  
+- import_playbook: 002_create_user_games.yml  
+- import_playbook: 003_install_steam.yml  
+- import_playbook: 004_install_sunshine.yml  
+

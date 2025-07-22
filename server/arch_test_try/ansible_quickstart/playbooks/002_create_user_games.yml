@@ -1,0 +1,44 @@
+---
+- name: create user 'games'
+  hosts: all
+  become: yes
+  tasks:
+    # Create a new user named 'games' only if it doesn't exist
+    - name: Check if user 'games' exists
+      command: id games
+      register: check_games_user
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Add user 'games' with password 'password123'
+      when: check_games_user.rc != 0
+      user:
+        name: games
+        password: $6$rounds=656000$XDnZc34QbKWQl8fP$OoVzHwT9rM5U7dSgCjRJm3xGQvZ2pAq1x6k7P.8xBtN45KsKz2kZ/9yYw==  # This is a hashed password for 'password123'
+        shell: /bin/bash
+        groups: wheel
+
+    - name: Ensure the home directory exists for user 'games' and has correct permissions
+      file:
+        path: /home/games
+        state: directory
+        owner: games
+        group: games
+
+    # Configure GDM to enable automatic login for user 'games'
+    - name: Check if AutomaticLogin is set in GDM custom.conf (Arch Linux)
+      command: grep -qxF "AutomaticLogin=games" /etc/gdm/custom.conf
+      register: check_autologin
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Enable AutomaticLogin in GDM custom.conf (Arch Linux)
+      when: check_autologin.rc != 0
+      lineinfile:
+        path: /etc/gdm/custom.conf
+        line: "AutomaticLogin=games"
+
+    - name: Restart GDM to apply configuration changes
+      systemd:
+        name: gdm
+        state: restarted
