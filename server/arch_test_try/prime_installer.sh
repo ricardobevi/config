@@ -26,7 +26,7 @@ download_file "$USER_CREDENTIALS_URL" "$CREDENTIALS_DEST"
 
 # Update system packages (optional, can be skipped if not needed)
 echo "Updating system..."
-sudo pacman -Syu --noconfirm
+sudo pacman -Syu archinstall --noconfirm
 
 # Run archinstall with the downloaded configuration files
 echo "Starting archinstall with provided configurations..."
